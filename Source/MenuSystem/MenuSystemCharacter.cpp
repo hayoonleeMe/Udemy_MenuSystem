@@ -9,12 +9,14 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
+#include "OnlineSessionSettings.h"
 
 //////////////////////////////////////////////////////////////////////////
 // AMenuSystemCharacter
 
 AMenuSystemCharacter::AMenuSystemCharacter():
-	CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete))
+	CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete)),
+	FindSessionsCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionsComplete))
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -117,9 +119,26 @@ void AMenuSystemCharacter::CreateGameSession()
 	SessionSettings->bAllowJoinViaPresence = true;	// Presence로 참가할 수 있는지 여부, Presence : 게임을 찾을 때 같은 지역의 플레이어만 참가할 수 있도록 하는 것 
 	SessionSettings->bShouldAdvertise = true;	// 스팀이 세션을 광고하여 다른 플레이어가 세션을 찾아서 참가할 수 있는지 여부
 	SessionSettings->bUsesPresence = true;	// 유저 Presence 정보를 표시할 것인지 여부
-
+	SessionSettings->bUseLobbiesIfAvailable = true;	// UE 5.0.2 이후부터는 이 옵션이 있어야 FindSession이 가능하다.
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
+}
+
+void AMenuSystemCharacter::JoinGameSession()
+{
+	// Find game sessions
+	if (!OnlineSessionInterface.IsValid())
+		return;
+
+	OnlineSessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegate);
+
+	SessionSearch = MakeShareable(new FOnlineSessionSearch());
+	SessionSearch->MaxSearchResults = 10000;	// 최대 세션검색 결과의 수, 현재 Dev App Id를 480으로 쓰므로 크게 설정한다.
+	SessionSearch->bIsLanQuery = false;	// LAN을 사용하지 않으므로 false
+	SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);	// 우리가 찾는 세션이 Presence를 사용하는 것을 명시하도록 쿼리세팅 설정
+
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	OnlineSessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
 }
 
 void AMenuSystemCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
@@ -145,6 +164,24 @@ void AMenuSystemCharacter::OnCreateSessionComplete(FName SessionName, bool bWasS
 				15.f,
 				FColor::Red,
 				FString(TEXT("Failed to create session!"))
+			);
+		}
+	}
+}
+
+void AMenuSystemCharacter::OnFindSessionsComplete(bool bWasSuccessful)
+{
+	for (auto Result : SessionSearch->SearchResults)
+	{
+		FString Id = Result.GetSessionIdStr();
+		FString User = Result.Session.OwningUserName;
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.f,
+				FColor::Cyan,
+				FString::Printf(TEXT("Id : %s , User : %s"), *Id, *User)
 			);
 		}
 	}
