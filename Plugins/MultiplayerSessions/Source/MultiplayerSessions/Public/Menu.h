@@ -23,6 +23,12 @@ protected:
 	// 레벨이 removed되면 호출된다. 레벨을 이동하면 이전의 레벨은 destroyed되고 removed된다.
 	virtual void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld) override;
 
+	//
+	// Callbacks for the custom delegates on the MultiplayerSessionSubsystem
+	//
+	UFUNCTION()
+	void OnCreateSession(bool bWasSuccessful);
+
 private:
 	UPROPERTY(meta = (BindWidget))
 	class UButton* HostButton;
