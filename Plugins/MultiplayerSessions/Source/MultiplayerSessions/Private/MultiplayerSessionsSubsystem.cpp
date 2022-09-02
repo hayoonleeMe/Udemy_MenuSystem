@@ -33,13 +33,14 @@ void UMultiplayerSessionsSubsystem::CreateSession(int32 NumPublicConnections, FS
 
 	LastSessionSettings = MakeShareable(new FOnlineSessionSettings());
 	LastSessionSettings->bIsLANMatch = IOnlineSubsystem::Get()->GetSubsystemName() == TEXT("NULL") ? true : false;	 
-	LastSessionSettings->NumPublicConnections = NumPublicConnections;	// 게임에 존재할 수 있는 최대 플레이어의 수
+	LastSessionSettings->NumPublicConnections = NumPublicConnections;	// 게임에 연결할 수 있는 최대 세션의 수
 	LastSessionSettings->bAllowJoinInProgress = true;	// 세션이 작동중일 때 다른 플레이어가 참가할 수 있는지 여부
 	LastSessionSettings->bAllowJoinViaPresence = true;	// Presence로 참가할 수 있는지 여부, Presence : 게임을 찾을 때 같은 지역의 플레이어만 참가할 수 있도록 하는 것 
 	LastSessionSettings->bShouldAdvertise = true;	// 스팀이 세션을 광고하여 다른 플레이어가 세션을 찾아서 참가할 수 있는지 여부
 	LastSessionSettings->bUsesPresence = true;	// 유저 Presence 정보를 표시할 것인지 여부
 	LastSessionSettings->bUseLobbiesIfAvailable = true;	// UE 5.0.2 이후부터는 이 옵션이 있어야 FindSession이 가능하다.
 	LastSessionSettings->Set(FName(TEXT("MatchType")), MatchType, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+	LastSessionSettings->BuildUniqueId = 1;	// 1로 설정하면 여러 유저가 각각 고유의 빌드와 호스팅을 할 수 있다. 이후 유효한 게임 세션을 검색할 때 각각의 여러 세션들을 검색하고 참가할 수 있다. 만약 1이 아니면 다른 유저들의 세션들을 볼 수 없고 첫번째로 열리는 게임 세션에 참가하려고 할 것이다.
 
 	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
 	if (!SessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *LastSessionSettings))
